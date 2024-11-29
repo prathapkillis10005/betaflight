@@ -138,7 +138,7 @@ CI_TARGETS          := $(filter-out $(CI_EXCLUDED_TARGETS), $(BASE_TARGETS)) $(f
 TARGET_PLATFORM     := $(notdir $(patsubst %/,%,$(subst target/$(TARGET)/,, $(dir $(wildcard $(PLATFORM_DIR)/*/target/$(TARGET)/target.mk)))))
 TARGET_PLATFORM_DIR := $(PLATFORM_DIR)/$(TARGET_PLATFORM)
 LINKER_DIR          := $(TARGET_PLATFORM_DIR)/link
-VPATH               := $(VPATH):$(TARGET_PLATFORM_DIR):$(TARGET_PLATFORM_DIR)/startup
+VPATH               := $(VPATH):$(TARGET_PLATFORM_DIR):$(TARGET_PLATFORM_DIR)/startup:$(PLATFORM_DIR)/common
 
 include $(TARGET_PLATFORM_DIR)/target/$(TARGET)/target.mk
 
@@ -195,6 +195,9 @@ TARGET_FLAGS := -D$(TARGET) -D$(TARGET_PLATFORM) -D$(TARGET_MCU_FAMILY) $(TARGET
 ifneq ($(CONFIG),)
 TARGET_FLAGS := $(TARGET_FLAGS) -DUSE_CONFIG
 endif
+
+SPEED_OPTIMISED_SRC := ""
+SIZE_OPTIMISED_SRC  := ""
 
 include $(TARGET_PLATFORM_DIR)/mk/$(TARGET_MCU_FAMILY).mk
 
@@ -464,10 +467,10 @@ $(TARGET_OBJ_DIR)/%.o: %.c
 	$(V1) $(if $(findstring $<,$(NOT_OPTIMISED_SRC)), \
 		$(call compile_file,not optimised,$(CC_NO_OPTIMISATION)) \
 	, \
-		$(if $(findstring $(subst ./src/main/,,$<),$(SPEED_OPTIMISED_SRC)), \
+		$(if $(findstring $(subst ./src/platform/,,$(subst ./src/main/,,$<)),$(SPEED_OPTIMISED_SRC)), \
 			$(call compile_file,speed optimised,$(CC_SPEED_OPTIMISATION)) \
 		, \
-			$(if $(findstring $(subst ./src/main/,,$<),$(SIZE_OPTIMISED_SRC)), \
+			$(if $(findstring $(subst ./src/platform/,,$(subst ./src/main/,,$<)),$(SIZE_OPTIMISED_SRC)), \
 				$(call compile_file,size optimised,$(CC_SIZE_OPTIMISATION)) \
 			, \
 				$(call compile_file,optimised,$(CC_DEFAULT_OPTIMISATION)) \

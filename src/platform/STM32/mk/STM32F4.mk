@@ -173,6 +173,7 @@ endif
 DEVICE_FLAGS    += -DHSE_VALUE=$(HSE_VALUE) -DSTM32
 
 MCU_COMMON_SRC = \
+            stm32/system.c \
             drivers/accgyro/accgyro_mpu.c \
             drivers/dshot_bitbang_decode.c \
             drivers/inverter.c \
@@ -201,7 +202,19 @@ MCU_COMMON_SRC = \
             transponder_ir_io_stdperiph.c \
             usbd_msc_desc.c \
             camera_control_stm32.c \
+            drivers/adc.c \
+            drivers/bus_i2c_config.c \
+            drivers/bus_spi.c \
+            drivers/bus_spi_config.c \
+            drivers/bus_spi_pinconfig.c \
+            drivers/serial_escserial.c \
+            drivers/serial_pinconfig.c \
+            drivers/serial_uart.c \
+            drivers/serial_uart_pinconfig.c \
             startup/system_stm32f4xx.c
+
+SPEED_OPTIMISED_SRC += \
+            common/stm32/system.c
 
 ifeq ($(PERIPH_DRIVER), HAL)
 VCP_SRC = \

@@ -113,6 +113,7 @@
 #include "io/displayport_msp.h"
 #include "io/flashfs.h"
 #include "io/gimbal.h"
+#include "io/gimbal_control.h"
 #include "io/gps.h"
 #include "io/ledstrip.h"
 #include "io/pidaudio.h"
@@ -384,7 +385,6 @@ void init(void)
 
 #endif // CONFIG_IN_EXTERNAL_FLASH || CONFIG_IN_MEMORY_MAPPED_FLASH
 
-
     initEEPROM();
 
     ensureEEPROMStructureIsValid();
@@ -573,7 +573,6 @@ void init(void)
 #if defined(USE_INVERTER) && !defined(SIMULATOR_BUILD)
     initInverters(serialPinConfig());
 #endif
-
 
 #ifdef TARGET_BUS_INIT
     targetBusInit();
@@ -864,6 +863,10 @@ void init(void)
 #endif
 
 #endif // VTX_CONTROL
+
+#ifdef USE_GIMBAL
+    gimbalInit();
+#endif
 
     batteryInit(); // always needs doing, regardless of features.
 
