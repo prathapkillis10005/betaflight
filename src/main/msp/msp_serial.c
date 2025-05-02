@@ -71,7 +71,10 @@ void mspSerialAllocatePorts(void)
             options |= SERIAL_BIDIR;
         } else if (serialType(portConfig->identifier) == SERIALTYPE_UART
                    || serialType(portConfig->identifier) == SERIALTYPE_LPUART) {
+            // TODO: SERIAL_CHECK_TX is broken on F7, disable it until it is fixed
+#if !defined(STM32F7) || defined(USE_F7_CHECK_TX)
             options |= SERIAL_CHECK_TX;
+#endif
         }
 
         serialPort_t *serialPort = openSerialPort(portConfig->identifier, FUNCTION_MSP, NULL, NULL, baudRates[portConfig->msp_baudrateIndex], MODE_RXTX, options);
@@ -456,6 +459,7 @@ static void mspProcessPendingRequest(mspPort_t * mspPort)
     case MSP_PENDING_CLI:
         mspPort->pendingRequest = MSP_PENDING_NONE;
         mspPort->portState = PORT_CLI_ACTIVE;
+
         cliEnter(mspPort->port, true);
         break;
 #endif
@@ -479,7 +483,7 @@ static void mspSerialProcessReceivedReply(mspPort_t *msp, mspProcessReplyFnPtr m
     mspProcessReplyFn(&reply);
 }
 
-void mspProcessPacket(mspPort_t *mspPort, mspProcessCommandFnPtr mspProcessCommandFn, mspProcessReplyFnPtr mspProcessReplyFn)
+static void mspProcessPacket(mspPort_t *mspPort, mspProcessCommandFnPtr mspProcessCommandFn, mspProcessReplyFnPtr mspProcessReplyFn)
 {
     mspPostProcessFnPtr mspPostProcessFn = NULL;
 
@@ -534,7 +538,12 @@ void mspSerialProcess(mspEvaluateNonMspData_e evaluateNonMspData, mspProcessComm
             if (c == '$') {
                 mspPort->portState = PORT_MSP_PACKET;
                 mspPort->packetState = MSP_HEADER_START;
-            } else if (evaluateNonMspData == MSP_EVALUATE_NON_MSP_DATA) {
+            } else if ((evaluateNonMspData == MSP_EVALUATE_NON_MSP_DATA)
+#ifdef USE_MSP_DISPLAYPORT
+                       // Don't evaluate non-MSP commands on VTX MSP port
+                       && (mspPort->port->identifier != displayPortMspGetSerial())
+#endif
+                       ) {
                 // evaluate the non-MSP data
                 if (c == serialConfig()->reboot_character) {
                     mspPort->pendingRequest = MSP_PENDING_BOOTLOADER_ROM;

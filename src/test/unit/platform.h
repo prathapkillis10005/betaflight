@@ -37,11 +37,13 @@
 #define NOINLINE
 #define FAST_CODE
 #define FAST_CODE_NOINLINE
+#define FAST_CODE_PREF
 #define FAST_DATA_ZERO_INIT
 #define FAST_DATA
 
+
 #define PID_PROFILE_COUNT 4
-#define CONTROL_RATE_PROFILE_COUNT  4
+#define CONTROL_RATE_PROFILE_COUNT 4
 #define USE_MAG
 #define USE_BARO
 #define USE_GPS
@@ -121,6 +123,7 @@ typedef struct
     void* test;
 } ADC_TypeDef;
 
+#define SPIDEV_COUNT 0
 #define WS2811_DMA_TC_FLAG (void *)1
 #define WS2811_DMA_HANDLER_IDENTIFER 0
 #define NVIC_PriorityGroup_2 0x500

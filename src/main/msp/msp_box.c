@@ -57,7 +57,7 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] = {
     { .boxId = BOXCAMSTAB, .boxName = "CAMSTAB", .permanentId = 8 },
 //    { .boxId = BOXCAMTRIG, .boxName = "CAMTRIG", .permanentId = 9 },
 //    { .boxId = BOXGPSHOME, .boxName = "GPS HOME", .permanentId = 10 },
-//    { .boxId = BOXGPSHOLD, .boxName = "GPS HOLD", .permanentId = 11 },
+    { .boxId = BOXPOSHOLD, .boxName = "POS HOLD", .permanentId = 11 },
     { .boxId = BOXPASSTHRU, .boxName = "PASSTHRU", .permanentId = 12 },
     { .boxId = BOXBEEPERON, .boxName = "BEEPER", .permanentId = 13 },
 //    { .boxId = BOXLEDMAX, .boxName = "LEDMAX", .permanentId = 14 }, (removed)
@@ -75,7 +75,7 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] = {
     { .boxId = BOXBLACKBOX, .boxName = "BLACKBOX", .permanentId = 26 },
     { .boxId = BOXFAILSAFE, .boxName = "FAILSAFE", .permanentId = 27 },
     { .boxId = BOXAIRMODE, .boxName = "AIR MODE", .permanentId = 28 },
-    { .boxId = BOX3D, .boxName = "3D DISABLE / SWITCH", .permanentId = 29},
+    { .boxId = BOX3D, .boxName = "3D DISABLE", .permanentId = 29},
     { .boxId = BOXFPVANGLEMIX, .boxName = "FPV ANGLE MIX", .permanentId = 30},
     { .boxId = BOXBLACKBOXERASE, .boxName = "BLACKBOX ERASE", .permanentId = 31 },
     { .boxId = BOXCAMERA1, .boxName = "CAMERA CONTROL 1", .permanentId = 32},
@@ -101,6 +101,7 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] = {
     { .boxId = BOXBEEPERMUTE, .boxName = "BEEPER MUTE", .permanentId = 52},
     { .boxId = BOXREADY, .boxName = "READY", .permanentId = 53},
     { .boxId = BOXLAPTIMERRESET, .boxName = "LAP TIMER RESET", .permanentId = 54},
+    { .boxId = BOXCHIRP, .boxName = "CHIRP", .permanentId = 55}
 };
 
 // mask of enabled IDs, calculated on startup based on enabled features. boxId_e is used as bit index
@@ -221,8 +222,11 @@ void initActiveBoxIds(void)
     if (sensors(SENSOR_ACC)) {
         BME(BOXANGLE);
         BME(BOXHORIZON);
-#ifdef USE_ALT_HOLD_MODE
+#ifdef USE_ALTITUDE_HOLD
         BME(BOXALTHOLD);
+#endif
+#ifdef USE_POSITION_HOLD
+        BME(BOXPOSHOLD);
 #endif
         BME(BOXHEADFREE);
         BME(BOXHEADADJ);
@@ -360,6 +364,10 @@ void initActiveBoxIds(void)
 
 #if defined(USE_GPS_LAP_TIMER)
     BME(BOXLAPTIMERRESET);
+#endif
+
+#if defined(USE_CHIRP)
+    BME(BOXCHIRP);
 #endif
 
 #undef BME

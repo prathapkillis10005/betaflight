@@ -17,14 +17,7 @@
 
 #pragma once
 
-#include "pg/autopilot.h"
-#include "flight/pid.h"
+#include "io/gps.h"
 
-void autopilotInit(const autopilotConfig_t *config);
-void resetAltitudeControl(void);
-
-void altitudeControl(float targetAltitudeCm, float taskIntervalS, float verticalVelocity, float targetAltitudeStep);
-
-bool isBelowLandingAltitude(void);
-const pidCoefficient_t *getAltitudePidCoeffs(void);
-float getAutopilotThrottle(void);
+#include "flight/autopilot_multirotor.h"
+#include "flight/autopilot_wing.h"

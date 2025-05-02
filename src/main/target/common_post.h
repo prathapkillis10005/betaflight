@@ -51,9 +51,12 @@
 #else
 #define FAST_CODE                   __attribute__((section(".tcm_code")))
 #endif
-// Handle case where we'd prefer code to be in ITCM, but it won't fit on the device
 #ifndef FAST_CODE_PREF
 #define FAST_CODE_PREF              FAST_CODE
+// If a particular target is short of ITCM RAM, defining FAST_CODE_PREF in the target.h file will
+// cause functions decorated FAST_CODE_PREF to *not* go into ITCM RAM
+// but if FAST_CODE_PREF is not defined for the target, FAST_CODE_PREF is an alias to FAST_CODE, and
+// functions decorated with FAST_CODE_PREF *will* go into ITCM RAM.
 #endif
 
 #define FAST_CODE_NOINLINE          NOINLINE
@@ -87,6 +90,47 @@
 
 // normalize serial ports definitions
 #include "serial_post.h"
+
+#if defined(USE_ACC) \
+    && !defined(USE_ACC_MPU6000) \
+    && !defined(USE_ACC_MPU6050) \
+    && !defined(USE_ACC_MPU6500) \
+    && !defined(USE_ACCGYRO_BMI160) \
+    && !defined(USE_ACCGYRO_BMI270) \
+    && !defined(USE_ACC_SPI_ICM20602) \
+    && !defined(USE_ACC_SPI_ICM20649) \
+    && !defined(USE_ACC_SPI_ICM20689) \
+    && !defined(USE_ACC_SPI_ICM42605) \
+    && !defined(USE_ACC_SPI_ICM42688P) \
+    && !defined(USE_ACCGYRO_LSM6DSO) \
+    && !defined(USE_ACCGYRO_LSM6DSV16X) \
+    && !defined(USE_ACC_SPI_MPU6000) \
+    && !defined(USE_ACC_SPI_MPU6500) \
+    && !defined(USE_ACC_SPI_MPU9250) \
+    && !defined(USE_VIRTUAL_ACC) \
+    && !defined(USE_ACCGYRO_IIM42653)
+#error At least one USE_ACC device definition required
+#endif
+
+#if defined(USE_GYRO) \
+    && !defined(USE_GYRO_MPU6050) \
+    && !defined(USE_GYRO_MPU6500) \
+    && !defined(USE_ACCGYRO_BMI160) \
+    && !defined(USE_ACCGYRO_BMI270) \
+    && !defined(USE_GYRO_SPI_ICM20602) \
+    && !defined(USE_GYRO_SPI_ICM20649) \
+    && !defined(USE_GYRO_SPI_ICM20689) \
+    && !defined(USE_GYRO_SPI_ICM42605) \
+    && !defined(USE_GYRO_SPI_ICM42688P) \
+    && !defined(USE_ACCGYRO_LSM6DSO) \
+    && !defined(USE_ACCGYRO_LSM6DSV16X) \
+    && !defined(USE_GYRO_SPI_MPU6000) \
+    && !defined(USE_GYRO_SPI_MPU6500) \
+    && !defined(USE_GYRO_SPI_MPU9250) \
+    && !defined(USE_VIRTUAL_GYRO) \
+    && !defined(USE_ACCGYRO_IIM42653)
+#error At least one USE_GYRO device definition required
+#endif
 
 #if defined(USE_MAG) && !defined(USE_VIRTUAL_MAG)
 
@@ -423,15 +467,9 @@
 #endif
 
 // Generate USE_SPI_GYRO or USE_I2C_GYRO
-#if defined(USE_GYRO_L3G4200D) || defined(USE_GYRO_MPU3050) || defined(USE_GYRO_MPU6000) || defined(USE_GYRO_MPU6050) || defined(USE_GYRO_MPU6500)
-#ifndef USE_I2C_GYRO
-#define USE_I2C_GYRO
-#endif
-#endif
-
 #if defined(USE_GYRO_SPI_ICM20689) || defined(USE_GYRO_SPI_MPU6000) || defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU9250) \
-    || defined(USE_GYRO_L3GD20) || defined(USE_GYRO_SPI_ICM42605) || defined(USE_GYRO_SPI_ICM42688P) || defined(USE_ACCGYRO_BMI160) \
-    || defined(USE_ACCGYRO_BMI270) || defined(USE_ACCGYRO_LSM6DSV16X) || defined(USE_ACCGYRO_LSM6DSO)
+    || defined(USE_GYRO_L3GD20) || defined(USE_GYRO_SPI_ICM42605) || defined(USE_GYRO_SPI_ICM42688P) || defined(USE_ACCGYRO_IIM42653) \
+    || defined(USE_ACCGYRO_BMI160) || defined(USE_ACCGYRO_BMI270) || defined(USE_ACCGYRO_LSM6DSV16X) || defined(USE_ACCGYRO_LSM6DSO)
 #ifndef USE_SPI_GYRO
 #define USE_SPI_GYRO
 #endif
@@ -458,14 +496,6 @@
 // Can be set at runtime with with CLI parameter 'system_hse_mhz'.
 #ifndef SYSTEM_HSE_MHZ
 #define SYSTEM_HSE_MHZ 0
-#endif
-
-// Number of pins that needs pre-init
-#ifdef USE_SPI
-#ifndef SPI_PREINIT_COUNT
-// 2 x 8 (GYROx2, BARO, MAG, MAX, FLASHx2, RX)
-#define SPI_PREINIT_COUNT 16
-#endif
 #endif
 
 #ifndef USE_BLACKBOX
@@ -552,14 +582,20 @@
 #undef USED_TIMERS
 #endif
 
-#if !defined(USE_RANGEFINDER)
-#undef USE_RANGEFINDER_HCSR04
-#undef USE_RANGEFINDER_SRF10
-#undef USE_RANGEFINDER_HCSR04_I2C
-#undef USE_RANGEFINDER_VL53L0X
-#undef USE_RANGEFINDER_UIB
-#undef USE_RANGEFINDER_TF
+#if defined(USE_OPTICALFLOW_MT)
+#ifndef USE_RANGEFINDER_MT
+#define USE_RANGEFINDER_MT
 #endif
+#ifndef USE_OPTICALFLOW
+#define USE_OPTICALFLOW
+#endif
+#endif // USE_OPTICALFLOW_MT
+
+#if defined(USE_RANGEFINDER_HCSR04) || defined(USE_RANGEFINDER_SRF10) || defined(USE_RANGEFINDER_HCSR04_I2C) || defined(USE_RANGEFINDER_VL53L0X) || defined(USE_RANGEFINDER_UIB) || defined(USE_RANGEFINDER_TF) || defined(USE_RANGEFINDER_MT)
+#ifndef USE_RANGEFINDER
+#define USE_RANGEFINDER
+#endif
+#endif // USE_RANGEFINDER_XXX
 
 #ifndef USE_GPS_RESCUE
 #undef USE_CMS_GPS_RESCUE_MENU

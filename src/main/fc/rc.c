@@ -27,7 +27,6 @@
 
 #include "build/debug.h"
 
-#include "common/axis.h"
 #include "common/utils.h"
 #include "common/vector.h"
 
@@ -48,7 +47,6 @@
 #include "flight/pid_init.h"
 
 #include "pg/rx.h"
-
 #include "rx/rx.h"
 
 #include "sensors/battery.h"
@@ -168,7 +166,7 @@ STATIC_ASSERT(CONTROL_RATE_CONFIG_RATE_LIMIT_MAX <= (uint16_t)SETPOINT_RATE_LIMI
 
 #define RC_RATE_INCREMENTAL 14.54f
 
-float applyBetaflightRates(const int axis, float rcCommandf, const float rcCommandfAbs)
+static float applyBetaflightRates(const int axis, float rcCommandf, const float rcCommandfAbs)
 {
     if (currentControlRateProfile->rcExpo[axis]) {
         const float expof = currentControlRateProfile->rcExpo[axis] / 100.0f;
@@ -188,7 +186,7 @@ float applyBetaflightRates(const int axis, float rcCommandf, const float rcComma
     return angleRate;
 }
 
-float applyRaceFlightRates(const int axis, float rcCommandf, const float rcCommandfAbs)
+static float applyRaceFlightRates(const int axis, float rcCommandf, const float rcCommandfAbs)
 {
     // -1.0 to 1.0 ranged and curved
     rcCommandf = ((1.0f + 0.01f * currentControlRateProfile->rcExpo[axis] * (rcCommandf * rcCommandf - 1.0f)) * rcCommandf);
@@ -199,7 +197,7 @@ float applyRaceFlightRates(const int axis, float rcCommandf, const float rcComma
     return angleRate;
 }
 
-float applyKissRates(const int axis, float rcCommandf, const float rcCommandfAbs)
+static float applyKissRates(const int axis, float rcCommandf, const float rcCommandfAbs)
 {
     const float rcCurvef = currentControlRateProfile->rcExpo[axis] / 100.0f;
 
@@ -210,7 +208,7 @@ float applyKissRates(const int axis, float rcCommandf, const float rcCommandfAbs
     return kissAngle;
 }
 
-float applyActualRates(const int axis, float rcCommandf, const float rcCommandfAbs)
+static float applyActualRates(const int axis, float rcCommandf, const float rcCommandfAbs)
 {
     float expof = currentControlRateProfile->rcExpo[axis] / 100.0f;
     expof = rcCommandfAbs * (power5(rcCommandf) * expof + rcCommandf * (1 - expof));
@@ -222,7 +220,7 @@ float applyActualRates(const int axis, float rcCommandf, const float rcCommandfA
     return angleRate;
 }
 
-float applyQuickRates(const int axis, float rcCommandf, const float rcCommandfAbs)
+static float applyQuickRates(const int axis, float rcCommandf, const float rcCommandfAbs)
 {
     const uint16_t rcRate = currentControlRateProfile->rcRates[axis] * 2;
     const uint16_t maxDPS = MAX(currentControlRateProfile->rates[axis] * 10, rcRate);
@@ -324,7 +322,7 @@ bool getRxRateValid(void)
 
 // Initialize or update the filters base on either the manually selected cutoff, or
 // the auto-calculated cutoff frequency based on detected rx frame rate.
-FAST_CODE_NOINLINE void rcSmoothingSetFilterCutoffs(rcSmoothingFilter_t *smoothingData)
+static FAST_CODE_NOINLINE void rcSmoothingSetFilterCutoffs(rcSmoothingFilter_t *smoothingData)
 {
     // in auto mode, calculate the RC smoothing cutoff from the smoothed Rx link frequency
     const uint16_t oldSetpointCutoff = smoothingData->setpointCutoffFrequency;
@@ -520,7 +518,7 @@ static FAST_CODE void processRcSmoothingFilter(void)
 #endif // USE_RC_SMOOTHING_FILTER
 
 #ifdef USE_FEEDFORWARD
-FAST_CODE_NOINLINE void calculateFeedforward(const pidRuntime_t *pid, flight_dynamics_index_t axis)
+static FAST_CODE_NOINLINE void calculateFeedforward(const pidRuntime_t *pid, flight_dynamics_index_t axis)
 {
     const float rxInterval = currentRxIntervalUs * 1e-6f; // seconds
     float rxRate = currentRxRateHz;                 // 1e6f / currentRxIntervalUs;
@@ -717,7 +715,6 @@ FAST_CODE void processRcCommand(void)
                 } else {
                     rcCommandf = rcCommand[axis] / rcCommandDivider;
                 }
-
                 rcDeflection[axis] = rcCommandf;
                 const float rcCommandfAbs = fabsf(rcCommandf);
                 rcDeflectionAbs[axis] = rcCommandfAbs;
@@ -752,26 +749,15 @@ FAST_CODE_NOINLINE void updateRcCommands(void)
     isRxDataNew = true;
 
     for (int axis = 0; axis < 3; axis++) {
-
-        float tmp = MIN(fabsf(rcData[axis] - rxConfig()->midrc), 500.0f);
+        float rc = constrainf(rcData[axis] - rxConfig()->midrc, -500.0f, 500.0f); // -500 to 500
+        float rcDeadband = 0;
         if (axis == ROLL || axis == PITCH) {
-            if (tmp > rcControlsConfig()->deadband) {
-                tmp -= rcControlsConfig()->deadband;
-            } else {
-                tmp = 0;
-            }
-            rcCommand[axis] = tmp;
+            rcDeadband = rcControlsConfig()->deadband;
         } else {
-            if (tmp > rcControlsConfig()->yaw_deadband) {
-                tmp -= rcControlsConfig()->yaw_deadband;
-            } else {
-                tmp = 0;
-            }
-            rcCommand[axis] = tmp * -GET_DIRECTION(rcControlsConfig()->yaw_control_reversed);
+            rcDeadband  = rcControlsConfig()->yaw_deadband;
+            rc *= -GET_DIRECTION(rcControlsConfig()->yaw_control_reversed);
         }
-        if (rcData[axis] < rxConfig()->midrc) {
-            rcCommand[axis] = -rcCommand[axis];
-        }
+        rcCommand[axis] = fapplyDeadband(rc, rcDeadband);
     }
 
     int32_t tmp;
@@ -812,7 +798,7 @@ FAST_CODE_NOINLINE void updateRcCommands(void)
 
         rcCommandBuff.x = rcCommand[ROLL];
         rcCommandBuff.y = rcCommand[PITCH];
-        if (!FLIGHT_MODE(ANGLE_MODE | ALT_HOLD_MODE | HORIZON_MODE | GPS_RESCUE_MODE)) {
+        if (!FLIGHT_MODE(ANGLE_MODE | ALT_HOLD_MODE | POS_HOLD_MODE | HORIZON_MODE | GPS_RESCUE_MODE)) {
             rcCommandBuff.z = rcCommand[YAW];
         } else {
             rcCommandBuff.z = 0;
@@ -820,7 +806,7 @@ FAST_CODE_NOINLINE void updateRcCommands(void)
         imuQuaternionHeadfreeTransformVectorEarthToBody(&rcCommandBuff);
         rcCommand[ROLL] = rcCommandBuff.x;
         rcCommand[PITCH] = rcCommandBuff.y;
-        if (!FLIGHT_MODE(ANGLE_MODE | ALT_HOLD_MODE | HORIZON_MODE | GPS_RESCUE_MODE)) {
+        if (!FLIGHT_MODE(ANGLE_MODE | ALT_HOLD_MODE | POS_HOLD_MODE | HORIZON_MODE | GPS_RESCUE_MODE)) {
             rcCommand[YAW] = rcCommandBuff.z;
         }
     }
@@ -837,20 +823,53 @@ bool isMotorsReversed(void)
     return reverseMotors;
 }
 
+static float quadraticBezier(float t, float p0, float p1, float p2) {
+    return (1.0f - t) * (1.0f - t) * p0 + 2.0f * (1.0f - t) * t * p1 + t * t * p2;
+}
+
 void initRcProcessing(void)
 {
     rcCommandDivider = 500.0f - rcControlsConfig()->deadband;
     rcCommandYawDivider = 500.0f - rcControlsConfig()->yaw_deadband;
 
+    float thrMid   = currentControlRateProfile->thrMid8   / 100.0f;  // normalized x coordinate for hover point
+    float expo     = currentControlRateProfile->thrExpo8   / 100.0f;  // normalized expo (0.0 .. 1.0)
+    float thrHover = currentControlRateProfile->thrHover8 / 100.0f;  // normalized y coordinate for hover point
+
+    /*
+    Algorithm Overview:
+      - thrMid and thrHover define a key point (hover point) in the throttle curve.
+        • thrMid is the normalized x-coordinate at which the curve reaches the hover point.
+        • thrHover is the normalized y-coordinate at that point.
+      - The curve is built in two segments using quadratic Bezier interpolation:
+        Segment 1: from (0, 0) to (thrMid, thrHover)
+          • ymin = 0, ymid = thrHover.
+          • The control point cp1y blends between (thrHover/2) for expo=0 and thrHover for expo=1.
+        Segment 2: from (thrMid, thrHover) to (1, 1)
+          • ymid = thrHover, ymax = 1.
+          • The control point cp2y blends between [thrHover + (1 - thrHover) / 2] for expo=0 and thrHover for expo=1.
+      - The output y is mapped from [0,1] to the PWM range.
+    */
+
     for (int i = 0; i < THROTTLE_LOOKUP_LENGTH; i++) {
-        const int16_t tmp = 10 * i - currentControlRateProfile->thrMid8;
-        uint8_t y = 1;
-        if (tmp > 0)
-            y = 100 - currentControlRateProfile->thrMid8;
-        if (tmp < 0)
-            y = currentControlRateProfile->thrMid8;
-        lookupThrottleRC[i] = 10 * currentControlRateProfile->thrMid8 + tmp * (100 - currentControlRateProfile->thrExpo8 + (int32_t) currentControlRateProfile->thrExpo8 * (tmp * tmp) / (y * y)) / 10;
-        lookupThrottleRC[i] = PWM_RANGE_MIN + PWM_RANGE * lookupThrottleRC[i] / 1000; // [MINTHROTTLE;MAXTHROTTLE]
+        float x = (float)i / (THROTTLE_LOOKUP_LENGTH - 1);
+        float y = 0.0f;
+
+        if (x <= thrMid) {
+            float t = (thrMid > 0.0f) ? x / thrMid : 0.0f;
+            float ymin = 0.0f;
+            float ymid = thrHover;
+            float cp1y = (thrHover / 2.0f) * (1.0f - expo) + thrHover * expo;
+            y = quadraticBezier(t, ymin, cp1y, ymid);
+        } else {
+            float t = ((1.0f - thrMid) > 0.0f) ? (x - thrMid) / (1.0f - thrMid) : 0.0f;
+            float ymid = thrHover;
+            float ymax = 1.0f;
+            float cp2y = (thrHover + (1.0f - thrHover) / 2.0f) * (1.0f - expo) + thrHover * expo;
+            y = quadraticBezier(t, ymid, cp2y, ymax);
+        }
+
+        lookupThrottleRC[i] = lrintf(scaleRangef(y, 0.0f, 1.0f, PWM_RANGE_MIN, PWM_RANGE_MAX));
     }
 
     switch (currentControlRateProfile->rates_type) {

@@ -84,6 +84,7 @@
 #define PG_GPS_LAP_TIMER 58
 #define PG_ALTHOLD_CONFIG 59
 #define PG_AUTOPILOT 60
+#define PG_POSHOLD_CONFIG 61
 
 // Driver configuration
 #define PG_DRIVER_PWM_RX_CONFIG 100 // does not exist in betaflight
@@ -157,7 +158,8 @@
 #define PG_MSP_CONFIG               557
 //#define PG_SOFTSERIAL_PIN_CONFIG    558  // removed, merged into SERIAL_PIN_CONFIG
 #define PG_GIMBAL_TRACK_CONFIG      559
-#define PG_BETAFLIGHT_END           559
+#define PG_OPTICALFLOW_CONFIG       560
+
 
 // OSD configuration (subject to change)
 #define PG_OSD_FONT_CONFIG 2047

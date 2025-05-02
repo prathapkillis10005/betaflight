@@ -1,19 +1,20 @@
 /*
- * This file is part of Cleanflight and Betaflight.
+ * This file is part of Betaflight.
  *
- * Cleanflight and Betaflight are free software. You can redistribute
- * this software and/or modify this software under the terms of the
- * GNU General Public License as published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version.
+ * Betaflight is free software. You can redistribute this software
+ * and/or modify this software under the terms of the GNU General
+ * Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later
+ * version.
  *
- * Cleanflight and Betaflight are distributed in the hope that they
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * Betaflight is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *
  * See the GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this software.
+ * You should have received a copy of the GNU General Public
+ * License along with this software.
  *
  * If not, see <http://www.gnu.org/licenses/>.
  */
@@ -320,7 +321,7 @@ uint8_t timerInputIrq(const TMR_TypeDef *tim)
     return 0;
 }
 
-void timerNVICConfigure(uint8_t irq)
+static void timerNVICConfigure(uint8_t irq)
 {
     DAL_NVIC_SetPriority(irq, NVIC_PRIORITY_BASE(NVIC_PRIO_TIMER), NVIC_PRIORITY_SUB(NVIC_PRIO_TIMER));
     DAL_NVIC_EnableIRQ(irq);
@@ -329,8 +330,9 @@ void timerNVICConfigure(uint8_t irq)
 TMR_HandleTypeDef* timerFindTimerHandle(TMR_TypeDef *tim)
 {
     uint8_t timerIndex = lookupTimerIndex(tim);
-    if (timerIndex >= USED_TIMER_COUNT)
+    if (timerIndex >= USED_TIMER_COUNT) {
         return NULL;
+    }
 
     return &timerHandle[timerIndex].Handle;
 }
@@ -1195,4 +1197,43 @@ DAL_StatusTypeDef DMA_SetCurrDataCounter(TMR_HandleTypeDef *htim, uint32_t Chann
     /* Return function status */
     return DAL_OK;
 }
+
+void timerReset(TIM_TypeDef *timer)
+{
+    DDL_TMR_DeInit(timer);
+}
+
+void timerSetPeriod(TIM_TypeDef *timer, uint32_t period)
+{
+    timer->AUTORLD = period;
+}
+
+uint32_t timerGetPeriod(TIM_TypeDef *timer)
+{
+    return timer->AUTORLD;
+}
+
+void timerSetCounter(TIM_TypeDef *timer, uint32_t counter)
+{
+    timer->CNT = counter;
+}
+
+void timerDisable(TIM_TypeDef *timer)
+{
+    DDL_TMR_DisableIT_UPDATE(timer);
+    DDL_TMR_DisableCounter(timer);
+}
+
+void timerEnable(TIM_TypeDef *timer)
+{
+    DDL_TMR_EnableCounter(timer);
+    DDL_TMR_GenerateEvent_UPDATE(timer);
+}
+
+void timerEnableInterrupt(TIM_TypeDef *timer)
+{
+    DDL_TMR_ClearFlag_UPDATE(timer);
+    DDL_TMR_EnableIT_UPDATE(timer);
+}
+
 #endif

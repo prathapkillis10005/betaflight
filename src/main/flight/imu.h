@@ -46,7 +46,7 @@ typedef struct {
 typedef union {
     int16_t raw[XYZ_AXIS_COUNT];
     struct {
-        // absolute angle inclination in multiple of 0.1 degree    180 deg = 1800
+        // absolute angle inclination in multiple of 0.1 degree  eg attitude.values.yaw 180 deg = 1800
         int16_t roll;
         int16_t pitch;
         int16_t yaw;
@@ -63,7 +63,7 @@ typedef struct imuConfig_s {
     uint16_t imu_dcm_ki;          // DCM filter integral gain ( x 10000)
     uint8_t small_angle;
     uint8_t imu_process_denom;
-    uint16_t mag_declination;     // Magnetic declination in degrees * 10
+    int16_t mag_declination;      // Magnetic declination in degrees * 10
 } imuConfig_t;
 
 PG_DECLARE(imuConfig_t, imuConfig);
@@ -92,5 +92,4 @@ void imuSetHasNewData(uint32_t dt);
 
 bool imuQuaternionHeadfreeOffsetSet(void);
 void imuQuaternionHeadfreeTransformVectorEarthToBody(vector3_t *v);
-bool shouldInitializeGPSHeading(void);
 bool isUpright(void);

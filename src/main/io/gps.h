@@ -25,15 +25,17 @@
 
 #include "common/axis.h"
 #include "common/time.h"
+#include <common/vector.h>
 
 #include "io/serial.h"
 
 #include "pg/gps.h"
 
 #define GPS_DEGREES_DIVIDER 10000000L
+#define EARTH_ANGLE_TO_CM (111.3195f * 1000 * 100 / GPS_DEGREES_DIVIDER) // 1.113195 cm per latitude unit at the equator (111.3195km/deg)
 #define GPS_X 1
 #define GPS_Y 0
-#define GPS_MIN_SAT_COUNT 4      // number of sats to trigger low sat count sanity check
+#define GPS_MIN_SAT_COUNT 4     // number of sats to trigger low sat count sanity check
 
 #ifdef USE_GPS_UBLOX
 typedef enum {
@@ -175,7 +177,8 @@ typedef enum {
 typedef enum {
     GPS_NMEA = 0,
     GPS_UBLOX,
-    GPS_MSP
+    GPS_MSP,
+    GPS_VIRTUAL,
 } gpsProvider_e;
 
 typedef enum {
@@ -188,14 +191,6 @@ typedef enum {
 } sbasMode_e;
 
 #define SBAS_MODE_MAX SBAS_GAGAN
-
-typedef enum {
-    GPS_BAUDRATE_115200 = 0,
-    GPS_BAUDRATE_57600,
-    GPS_BAUDRATE_38400,
-    GPS_BAUDRATE_19200,
-    GPS_BAUDRATE_9600
-} gpsBaudRate_e;
 
 typedef enum {
     GPS_AUTOCONFIG_OFF = 0,
@@ -214,18 +209,19 @@ typedef enum {
     UBLOX_ACK_GOT_NACK
 } ubloxAckState_e;
 
-#define GPS_BAUDRATE_MAX GPS_BAUDRATE_9600
-
 typedef struct gpsCoordinateDDDMMmmmm_s {
     int16_t dddmm;
     int16_t mmmm;
 } gpsCoordinateDDDMMmmmm_t;
 
 /* LLH Location in NEU axis system */
-typedef struct gpsLocation_s {
-    int32_t lat;                    // latitude * 1e+7
-    int32_t lon;                    // longitude * 1e+7
-    int32_t altCm;                  // altitude in 0.01m
+typedef union gpsLocation_u {
+    struct {
+        int32_t lat;                // latitude * 1e+7
+        int32_t lon;                // longitude * 1e+7
+        int32_t altCm;              // altitude in 0.01m
+    };
+    int32_t coords[3];              // added to provide direct access within loops
 } gpsLocation_t;
 
 /* A value below 100 means great accuracy is possible with GPS satellite constellation */
@@ -246,8 +242,8 @@ typedef struct gpsSolutionData_s {
     gpsLocation_t llh;
     gpsDilution_t dop;
     gpsAccuracy_t acc;
-    uint16_t speed3d;               // speed in 0.1m/s
-    uint16_t groundSpeed;           // speed in 0.1m/s
+    uint16_t speed3d;               // speed in cm/s
+    uint16_t groundSpeed;           // speed in cm/s
     uint16_t groundCourse;          // degrees * 10
     uint8_t numSat;
     uint32_t time;                  // GPS msToW
@@ -282,8 +278,8 @@ typedef struct gpsData_s {
     uint32_t state_position;        // incremental variable for loops
     uint32_t state_ts;              // timestamp for last state_position increment
     uint8_t state;                  // GPS thread state. Used for detecting cable disconnects and configuring attached devices
-    uint8_t userBaudRateIndex;          // index into auto-detecting or current baudrate
-    uint8_t tempBaudRateIndex;          // index into auto-detecting or current baudrate
+    uint8_t userBaudRateIndex;      // index into auto-detecting or current baudrate
+    uint8_t tempBaudRateIndex;      // index into auto-detecting or current baudrate
 
     uint8_t ackWaitingMsgId;        // Message id when waiting for ACK
     ubloxAckState_e ackState;       // Ack State
@@ -301,7 +297,7 @@ typedef struct gpsData_s {
 extern gpsLocation_t GPS_home_llh;
 extern uint16_t GPS_distanceToHome;        // distance to home point in meters
 extern uint32_t GPS_distanceToHomeCm;      // distance to home point in cm
-extern int16_t GPS_directionToHome;        // direction to home or hol point in degrees
+extern int16_t GPS_directionToHome;        // direction to home point in degrees * 10
 extern uint32_t GPS_distanceFlownInCm;     // distance flown since armed in centimeters
 
 typedef enum {
@@ -389,6 +385,13 @@ void onGpsNewData(void);
 void GPS_reset_home_position(void);
 void GPS_calc_longitude_scaling(int32_t lat);
 void GPS_distance_cm_bearing(const gpsLocation_t *from, const gpsLocation_t *to, bool dist3d, uint32_t *dist, int32_t *bearing);
+
+void GPS_distance2d(const gpsLocation_t *from, const gpsLocation_t *to, vector2_t *distance);
+
 void gpsSetFixState(bool state);
-float getGpsDataIntervalSeconds(void);      // sends GPS Nav Data interval to GPS Rescue
+
+bool gpsHasNewData(uint16_t *stamp);
+float getGpsDataIntervalSeconds(void);  // range 0.05 - 2.5s
+float getGpsDataFrequencyHz(void);      // range 20Hz - 0.4Hz
+
 baudRate_e getGpsPortActualBaudRateIndex(void);
